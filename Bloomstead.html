@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloomstead — Cozy Farm</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --soil:#6B4226;--soil-light:#8B5E3C;
+  --grass:#4A7C3F;--grass-light:#6AAB5C;
+  --gold:#F5C842;--gold-dark:#D4A017;
+  --panel:#FFF8ED;--panel-border:#DCC8A0;
+  --text:#3B2A1A;--text-muted:#8A7560;
+  --accent:#E85D4A;--accent2:#7EB8D4;
+  --rare:#C86DD7;--legendary:#F5A623;
+  --sky:#C8E6C9;
+  --plot-empty:#A0784A;--plot-planted:#7A5C38;--plot-ready:#5A8C46;
+  --shadow:rgba(59,42,26,0.15);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Nunito',sans-serif;background:var(--sky);background-image:radial-gradient(ellipse at 20% 10%,#b5e8b5 0%,transparent 50%),radial-gradient(ellipse at 80% 5%,#d4f0d4 0%,transparent 40%);min-height:100vh;color:var(--text);overflow-x:hidden;}
+.clouds{position:fixed;top:0;left:0;width:100%;height:120px;pointer-events:none;z-index:0;overflow:hidden;}
+.cloud{position:absolute;background:rgba(255,255,255,0.7);border-radius:50px;height:28px;animation:floatCloud linear infinite;}
+.cloud::before,.cloud::after{content:'';position:absolute;background:inherit;border-radius:50%;}
+.cloud::before{width:50px;height:50px;top:-20px;left:15px;}
+.cloud::after{width:35px;height:35px;top:-12px;right:15px;}
+@keyframes floatCloud{from{transform:translateX(-200px)}to{transform:translateX(110vw)}}
+
+header{position:relative;z-index:10;background:var(--grass);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 0 #3A6B30,0 8px 20px var(--shadow);border-bottom:4px solid #3A6B30;gap:12px;flex-wrap:wrap;}
+.logo{font-family:'Fredoka One',cursive;font-size:1.8rem;color:var(--gold);text-shadow:2px 2px 0 #8B5E00,0 0 20px rgba(245,200,66,0.4);letter-spacing:1px;}
+.logo span{color:#fff;}
+.hud{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.coin-display{background:var(--gold-dark);border:3px solid var(--gold);border-radius:30px;padding:5px 14px;font-size:1.1rem;font-weight:800;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,0.3);box-shadow:0 3px 0 #A07010;display:flex;align-items:center;gap:5px;}
+.day-display{background:rgba(255,255,255,0.3);border-radius:20px;padding:5px 12px;color:#fff;font-weight:700;font-size:0.9rem;}
+
+/* 3-column layout: farm | shop | inventory+pets+upgrades */
+.main-layout{position:relative;z-index:5;max-width:1400px;margin:0 auto;padding:16px;display:grid;grid-template-columns:1fr 300px 300px;gap:16px;align-items:start;}
+@media(max-width:1050px){.main-layout{grid-template-columns:1fr 280px;}}
+@media(max-width:680px){.main-layout{grid-template-columns:1fr;}}
+.left-col{display:flex;flex-direction:column;gap:14px;}
+.mid-col{display:flex;flex-direction:column;gap:14px;}
+.right-col{display:flex;flex-direction:column;gap:14px;}
+
+.panel{background:var(--panel);border:3px solid var(--panel-border);border-radius:20px;padding:16px;box-shadow:0 6px 0 var(--panel-border),0 10px 30px var(--shadow);}
+.section-title{font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--soil);margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+
+/* Farm */
+.harvest-all-btn{background:var(--grass);border:2px solid #3A6B30;border-radius:10px;padding:5px 12px;color:#fff;font-weight:800;font-size:0.78rem;cursor:pointer;box-shadow:0 3px 0 #2A5020;transition:all 0.15s;font-family:'Nunito',sans-serif;}
+.harvest-all-btn:hover{transform:translateY(-1px);box-shadow:0 4px 0 #2A5020;}
+.farm-grid{display:grid;gap:8px;margin-bottom:12px;}
+.plot{background:var(--plot-empty);border:3px solid #7A5530;border-radius:12px;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;position:relative;overflow:hidden;box-shadow:0 4px 0 #5A3A20;min-height:80px;}
+.plot:hover{transform:translateY(-2px);box-shadow:0 6px 0 #5A3A20;}
+.plot.planted{background:var(--plot-planted);border-color:#5A3E28;}
+.plot.ready{background:var(--plot-ready);border-color:#3A7030;box-shadow:0 4px 0 #2A6020,0 0 12px rgba(100,200,80,0.4);}
+.plot-emoji{font-size:1.8rem;line-height:1;}
+.plot-progress{position:absolute;bottom:0;left:0;right:0;height:5px;background:rgba(0,0,0,0.2);border-radius:0 0 9px 9px;}
+.plot-progress-bar{height:100%;background:var(--gold);border-radius:0 0 0 9px;transition:width 1s linear;}
+.plot-timer{font-size:0.62rem;color:rgba(255,255,255,0.9);font-weight:700;margin-top:2px;}
+.plot-name{font-size:0.6rem;color:rgba(255,255,255,0.8);font-weight:600;margin-top:1px;}
+.regrow-badge{position:absolute;top:3px;right:3px;background:rgba(100,200,80,0.9);border-radius:5px;padding:1px 3px;font-size:0.5rem;color:#fff;font-weight:700;}
+.plot-empty-label{font-size:0.7rem;color:rgba(255,255,255,0.45);font-weight:600;margin-top:4px;}
+.remove-btn{position:absolute;top:3px;left:3px;background:rgba(220,60,40,0.9);border:none;border-radius:4px;width:16px;height:16px;font-size:0.6rem;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;opacity:0;transition:opacity 0.15s;z-index:2;}
+.plot:hover .remove-btn{opacity:1;}
+.mutation-badge{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:0.9rem;filter:drop-shadow(0 0 4px rgba(255,255,255,0.9));}
+.plot.mut-golden{border-color:#E5B800!important;}
+.plot.mut-rainbow{border-color:#C040E0!important;}
+.plot.mut-lucky{border-color:#50C050!important;}
+.plot.mut-inferno{border-color:#FF5500!important;}
+.plot.mut-combo-gi{border-color:#FF8800!important;box-shadow:0 4px 0 #AA4400,0 0 14px rgba(255,120,0,0.5);}
+.plot.mut-combo-ri{border-color:#FF44AA!important;box-shadow:0 4px 0 #AA0066,0 0 14px rgba(255,60,160,0.5);}
+.plot.mut-combo-gr{border-color:#AA44FF!important;box-shadow:0 4px 0 #6600CC,0 0 14px rgba(170,80,255,0.5);}
+
+.seed-hotbar{display:flex;gap:6px;flex-wrap:wrap;background:rgba(107,66,38,0.1);border-radius:10px;padding:8px;}
+.seed-slot{background:var(--soil);border:2px solid var(--soil-light);border-radius:9px;padding:4px 8px;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:700;color:#fff;transition:all 0.15s;box-shadow:0 2px 0 #3A1A00;}
+.seed-slot:hover{transform:translateY(-1px);}
+.seed-slot.selected{border-color:var(--gold);background:var(--soil-light);box-shadow:0 2px 0 #3A1A00,0 0 10px rgba(245,200,66,0.5);}
+.seed-count{background:rgba(255,255,255,0.2);border-radius:6px;padding:1px 4px;font-size:0.62rem;}
+
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.stat-card{background:#FFF3DE;border:2px solid var(--panel-border);border-radius:10px;padding:8px;text-align:center;}
+.stat-value{font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--soil);}
+.stat-label{font-size:0.62rem;color:var(--text-muted);font-weight:700;margin-top:2px;}
+
+/* Shop */
+.shop-timer{font-size:0.75rem;color:var(--accent);font-weight:800;background:rgba(232,93,74,0.1);border-radius:7px;padding:2px 7px;display:inline-flex;align-items:center;gap:3px;}
+.shop-items{display:flex;flex-direction:column;gap:7px;margin-top:8px;}
+.shop-item{background:#FFF3DE;border:2px solid var(--panel-border);border-radius:11px;padding:8px 10px;display:flex;align-items:center;gap:8px;transition:all 0.15s;}
+.shop-item:hover{border-color:var(--gold);transform:translateX(2px);}
+.shop-item.pet-item{background:#F0E8FF;border-color:#C8A8E8;}
+.shop-item.pet-item:hover{border-color:var(--rare);}
+.shop-item-emoji{font-size:1.6rem;width:30px;text-align:center;flex-shrink:0;}
+.shop-item-info{flex:1;min-width:0;}
+.shop-item-name{font-weight:800;font-size:0.82rem;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.shop-item-desc{font-size:0.65rem;color:var(--text-muted);margin-top:1px;line-height:1.3;}
+.rarity-badge{font-size:0.52rem;padding:1px 4px;border-radius:5px;font-weight:700;white-space:nowrap;}
+.rarity-common{background:#E0F0E0;color:#3A7A3A;}
+.rarity-uncommon{background:#E0E8F8;color:#3A5A9A;}
+.rarity-rare{background:#F0E0F8;color:#7A3A9A;}
+.rarity-legendary{background:#FFF0C0;color:#9A7000;}
+.buy-btn{background:var(--grass);border:2px solid #3A6B30;border-radius:8px;padding:4px 8px;color:#fff;font-weight:800;font-size:0.72rem;cursor:pointer;box-shadow:0 2px 0 #2A5020;transition:all 0.15s;white-space:nowrap;font-family:'Nunito',sans-serif;flex-shrink:0;}
+.buy-btn:hover{transform:translateY(-1px);box-shadow:0 3px 0 #2A5020;}
+.buy-btn:disabled{background:#9AB89A;border-color:#7A9A7A;cursor:not-allowed;transform:none;}
+.buy-btn.pet-buy{background:#8A50C0;border-color:#6A30A0;box-shadow:0 2px 0 #4A1A80;}
+.buy-btn.pet-buy:hover{box-shadow:0 3px 0 #4A1A80;}
+.sale-badge{background:var(--accent);color:#fff;border-radius:5px;padding:1px 4px;font-size:0.52rem;font-weight:800;}
+.pet-level-badge{background:linear-gradient(135deg,#6A30A0,#A050E0);color:#fff;border-radius:5px;padding:1px 5px;font-size:0.55rem;font-weight:800;}
+
+/* Right panel tabs */
+.tabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;}
+.tab{padding:4px 9px;border-radius:8px;font-weight:700;font-size:0.7rem;cursor:pointer;border:2px solid transparent;background:rgba(107,66,38,0.08);color:var(--text-muted);transition:all 0.15s;}
+.tab.active{background:var(--soil);color:#fff;border-color:#4A2A0A;box-shadow:0 2px 0 #3A1A00;}
+
+/* Seed inventory */
+.inventory-grid{display:flex;flex-direction:column;gap:5px;}
+.inv-row{display:flex;align-items:center;gap:7px;background:#FFF3DE;border:2px solid var(--panel-border);border-radius:9px;padding:7px 9px;}
+.inv-emoji{font-size:1.3rem;}
+.inv-info{flex:1;}
+.inv-name{font-weight:800;font-size:0.8rem;}
+.inv-qty{font-size:0.65rem;color:var(--text-muted);}
+
+/* Upgrades */
+.upgrade-items{display:flex;flex-direction:column;gap:7px;}
+.upgrade-item{background:#FFF3DE;border:2px solid var(--panel-border);border-radius:11px;padding:8px 10px;display:flex;align-items:center;gap:8px;}
+.upgrade-info{flex:1;}
+.upgrade-name{font-weight:800;font-size:0.8rem;}
+.upgrade-desc{font-size:0.65rem;color:var(--text-muted);}
+.upgrade-level{font-size:0.6rem;color:var(--grass);font-weight:700;margin-top:2px;}
+.upgrade-btn{background:#7A5CBF;border:2px solid #5A3A9A;border-radius:8px;padding:4px 8px;color:#fff;font-weight:800;font-size:0.7rem;cursor:pointer;box-shadow:0 2px 0 #4A2A7A;transition:all 0.15s;white-space:nowrap;font-family:'Nunito',sans-serif;}
+.upgrade-btn:hover{transform:translateY(-1px);}
+.upgrade-btn:disabled{background:#9A8AB8;cursor:not-allowed;transform:none;}
+.maxed{color:var(--gold);font-weight:800;font-size:0.75rem;}
+
+/* Pets */
+.pet-slots{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+.pet-slot{width:62px;height:62px;border-radius:12px;border:2px dashed #C8A8E8;background:#F8F0FF;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:default;transition:all 0.15s;position:relative;}
+.pet-slot.occupied{background:#EEE0FF;border-style:solid;border-color:#A870D8;box-shadow:0 3px 0 #8850B8;}
+.pet-slot-emoji{font-size:1.5rem;}
+.pet-slot-name{font-size:0.48rem;font-weight:700;color:#7A3AA0;margin-top:1px;}
+.pet-slot-lv{font-size:0.44rem;color:#9A5AC0;}
+.pet-slot-empty-label{font-size:0.55rem;color:#C8A8E8;font-weight:700;text-align:center;line-height:1.4;}
+.remove-pet-btn{position:absolute;top:2px;right:2px;background:rgba(220,60,40,0.85);border:none;border-radius:4px;width:14px;height:14px;font-size:0.5rem;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s;}
+.pet-slot.occupied:hover .remove-pet-btn{opacity:1;}
+.owned-pets{display:flex;flex-direction:column;gap:6px;}
+.owned-pet-row{background:#F0E8FF;border:2px solid #C8A8E8;border-radius:10px;padding:7px 9px;display:flex;align-items:center;gap:7px;}
+.owned-pet-info{flex:1;min-width:0;}
+.owned-pet-name{font-weight:800;font-size:0.8rem;}
+.owned-pet-desc{font-size:0.62rem;color:#7A5A9A;line-height:1.3;}
+.pet-xp-bar{height:4px;background:rgba(0,0,0,0.1);border-radius:3px;margin-top:3px;overflow:hidden;}
+.pet-xp-fill{height:100%;background:linear-gradient(90deg,#A050E0,#E080FF);border-radius:3px;transition:width 0.3s;}
+.pet-actions{display:flex;flex-direction:column;gap:4px;flex-shrink:0;}
+.assign-btn{background:#8A50C0;border:2px solid #6A30A0;border-radius:7px;padding:3px 7px;color:#fff;font-weight:800;font-size:0.65rem;cursor:pointer;box-shadow:0 2px 0 #4A1A80;transition:all 0.15s;font-family:'Nunito',sans-serif;}
+.assign-btn:hover{transform:translateY(-1px);}
+.assign-btn:disabled{background:#9A8AB8;cursor:not-allowed;transform:none;}
+.sell-pet-btn{background:#C04040;border:2px solid #902020;border-radius:7px;padding:3px 7px;color:#fff;font-weight:800;font-size:0.6rem;cursor:pointer;box-shadow:0 2px 0 #601010;transition:all 0.15s;font-family:'Nunito',sans-serif;}
+.sell-pet-btn:hover{transform:translateY(-1px);}
+.levelup-btn{background:linear-gradient(135deg,#D4A017,#F5C842);border:2px solid #A07010;border-radius:7px;padding:3px 7px;color:#3B2A1A;font-weight:800;font-size:0.6rem;cursor:pointer;box-shadow:0 2px 0 #705010;transition:all 0.15s;font-family:'Nunito',sans-serif;}
+.levelup-btn:hover{transform:translateY(-1px);}
+.levelup-btn:disabled{background:#ccc;border-color:#aaa;cursor:not-allowed;transform:none;}
+
+/* Log */
+.log-entries{display:flex;flex-direction:column;gap:3px;max-height:260px;overflow-y:auto;}
+.log-entry{background:#F8F0FF;border:1px solid #DCC8F0;border-radius:7px;padding:4px 7px;font-size:0.67rem;display:flex;justify-content:space-between;align-items:flex-start;gap:5px;}
+.log-time{color:var(--text-muted);font-size:0.6rem;white-space:nowrap;flex-shrink:0;}
+
+/* Paytable */
+.paytable-section{margin-bottom:12px;}
+.paytable-title{font-weight:800;font-size:0.8rem;color:var(--soil);margin-bottom:6px;padding-bottom:3px;border-bottom:2px solid var(--panel-border);}
+.paytable-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.paytable-row{background:#FFF3DE;border:1px solid var(--panel-border);border-radius:7px;padding:4px 7px;display:flex;align-items:center;gap:5px;font-size:0.65rem;}
+.paytable-row.combo-row{background:#F0E8FF;border-color:#C8A8E8;}
+.paytable-mult{font-weight:800;font-size:0.78rem;margin-left:auto;white-space:nowrap;}
+.pt-note{font-size:0.6rem;color:var(--text-muted);margin-top:4px;font-style:italic;}
+
+/* Notifications */
+.notification{position:fixed;top:80px;right:20px;background:var(--grass);color:#fff;border-radius:12px;padding:10px 16px;font-weight:700;box-shadow:0 6px 20px var(--shadow);z-index:1000;animation:slideIn 0.3s ease,fadeOut 0.4s ease 2.1s forwards;font-size:0.85rem;max-width:280px;}
+.notification.earn{background:var(--gold-dark);}
+.notification.error{background:var(--accent);}
+.notification.pet{background:#8A50C0;}
+.notification.levelup{background:linear-gradient(135deg,#8A50C0,#D4A017);}
+@keyframes slideIn{from{opacity:0;transform:translateX(50px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0;transform:translateY(-10px)}}
+.harvest-pop{position:fixed;pointer-events:none;font-family:'Fredoka One',cursive;font-size:1.2rem;text-shadow:1px 1px 0 rgba(0,0,0,0.25);animation:floatUp 1.2s ease forwards;z-index:999;white-space:nowrap;}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-80px) scale(1.3)}}
+footer{text-align:center;padding:16px;color:var(--grass);font-size:0.75rem;font-weight:700;opacity:0.7;position:relative;z-index:5;}
+</style>
+</head>
+<body>
+<div class="clouds" id="clouds"></div>
+<header>
+  <div class="logo">🌸 Bloom<span>stead</span></div>
+  <div class="hud">
+    <div class="day-display" id="dayDisplay">Day 1</div>
+    <div class="coin-display">🪙 <span id="goldDisplay">50</span></div>
+  </div>
+</header>
+
+<div class="main-layout">
+  <!-- LEFT: farm + stats -->
+  <div class="left-col">
+    <div class="panel">
+      <div class="section-title">
+        🌾 Your Farm
+        <button class="harvest-all-btn" onclick="harvestAll()">🌾 Harvest All</button>
+      </div>
+      <div class="farm-grid" id="farmGrid" style="grid-template-columns:repeat(3,1fr);"></div>
+      <div style="font-size:0.68rem;color:var(--text-muted);font-weight:700;margin-bottom:5px;">🌱 SEEDS — <span id="modeLabel">click a seed to select, then click a plot</span></div>
+      <div class="seed-hotbar" id="seedHotbar"></div>
+    </div>
+    <div class="panel">
+      <div class="section-title">📊 Stats</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-value" id="statHarvests">0</div><div class="stat-label">HARVESTS</div></div>
+        <div class="stat-card"><div class="stat-value" id="statEarned">0</div><div class="stat-label">EARNED 🪙</div></div>
+        <div class="stat-card"><div class="stat-value" id="statPlots">4</div><div class="stat-label">PLOTS</div></div>
+        <div class="stat-card"><div class="stat-value" id="statPetTriggers">0</div><div class="stat-label">PET TRIGGERS</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MIDDLE: shop -->
+  <div class="mid-col">
+    <div class="panel">
+      <div class="section-title">🏪 FOMO Shop <span class="shop-timer" id="shopTimer">⏱ 5:00</span></div>
+      <div style="font-size:0.65rem;color:var(--text-muted);">Rotates every 5 min — seeds &amp; pets!</div>
+      <div class="shop-items" id="shopItems"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: seeds/pets/upgrades/log/paytable -->
+  <div class="right-col">
+    <div class="panel">
+      <div class="tabs">
+        <div class="tab active" id="tab-inv"  onclick="switchTab('inv')">🌱 Seeds</div>
+        <div class="tab"       id="tab-pets" onclick="switchTab('pets')">🐾 Pets</div>
+        <div class="tab"       id="tab-upg"  onclick="switchTab('upg')">⚡ Upgrades</div>
+        <div class="tab"       id="tab-pay"  onclick="switchTab('pay')">📋 Paytable</div>
+        <div class="tab"       id="tab-log"  onclick="switchTab('log')">📜 Log</div>
+      </div>
+      <div id="panel-inv"  class="inventory-grid"></div>
+      <div id="panel-pets" style="display:none;"></div>
+      <div id="panel-upg"  style="display:none;"><div class="upgrade-items" id="upgradeItems"></div></div>
+      <div id="panel-pay"  style="display:none;"></div>
+      <div id="panel-log"  style="display:none;"><div class="log-entries" id="logEntries"></div></div>
+    </div>
+  </div>
+</div>
+<footer>Bloomstead • A cozy idle farm game</footer>
+
+<script>
+// ===== DATA =====
+const CROPS = {
+  wheat:       {name:'Wheat',       emoji:'🌾',growTime:30,  sellPrice:5,  regrows:true, regrowTime:20,  rarity:'common',   desc:'Quick regrow.'},
+  carrot:      {name:'Carrot',      emoji:'🥕',growTime:60,  sellPrice:14, regrows:false,                rarity:'common',   desc:'Sweet single harvest.'},
+  tomato:      {name:'Tomato',      emoji:'🍅',growTime:90,  sellPrice:22, regrows:true, regrowTime:60,  rarity:'common',   desc:'Juicy regrow profit.'},
+  strawberry:  {name:'Strawberry',  emoji:'🍓',growTime:75,  sellPrice:18, regrows:true, regrowTime:50,  rarity:'common',   desc:'Consistent income.'},
+  corn:        {name:'Corn',        emoji:'🌽',growTime:150, sellPrice:45, regrows:false,                rarity:'common',   desc:'Golden kernels.'},
+  sunflower:   {name:'Sunflower',   emoji:'🌻',growTime:120, sellPrice:38, regrows:false,                rarity:'uncommon', desc:'One-time bloom.'},
+  blueberry:   {name:'Blueberry',   emoji:'🫐',growTime:180, sellPrice:55, regrows:true, regrowTime:120, rarity:'uncommon', desc:'Keeps producing.'},
+  pumpkin:     {name:'Pumpkin',     emoji:'🎃',growTime:300, sellPrice:95, regrows:false,                rarity:'uncommon', desc:'Worth the wait.'},
+  mushroom:    {name:'Mushroom',    emoji:'🍄',growTime:240, sellPrice:75, regrows:true, regrowTime:180, rarity:'uncommon', desc:'Grows in the dark.'},
+  eggplant:    {name:'Eggplant',    emoji:'🍆',growTime:200, sellPrice:62, regrows:false,                rarity:'uncommon', desc:'Deep flavor.'},
+  watermelon:  {name:'Watermelon',  emoji:'🍉',growTime:240, sellPrice:80, regrows:false,                rarity:'uncommon', desc:'Big boi.'},
+  dragonfruit: {name:'Dragon Fruit',emoji:'🐉',growTime:480, sellPrice:190,regrows:true, regrowTime:300, rarity:'rare',     desc:'Rare & regrows.'},
+  starfruit:   {name:'Star Fruit',  emoji:'⭐',growTime:360, sellPrice:130,regrows:true, regrowTime:240, rarity:'rare',     desc:'Stellar profits.'},
+  crystalbell: {name:'Crystal Bell',emoji:'🔮',growTime:600, sellPrice:320,regrows:false,                rarity:'rare',     desc:'Mystical one-time.'},
+  goldenrose:  {name:'Golden Rose', emoji:'🌹',growTime:900, sellPrice:600,regrows:true, regrowTime:600, rarity:'legendary',desc:'Legendary regrow.'},
+};
+const BUY_PRICES = {wheat:3,carrot:6,tomato:9,strawberry:7,corn:18,sunflower:16,blueberry:22,pumpkin:38,mushroom:30,eggplant:25,watermelon:32,dragonfruit:75,starfruit:52,crystalbell:130,goldenrose:1000};
+
+// Pets — base chance is PER 10-SECOND CHECK. Drastically reduced from before.
+// Level system: spawn at random lv 50-70, can upgrade up to +30 levels (max 100)
+// Chance scales with level: baseChance * (1 + (level-50)*0.005)  → at lv100 = +25% bonus
+// Level up cost: 50 * level gold
+const PETS = {
+  bee:      {name:'Buzz',    emoji:'🐝',rarity:'common',   effect:'lucky',   effectLabel:'🍀 Lucky',   desc:'+30%!', baseChance:0.08, buyPrice:300},
+  cat:      {name:'Mittens',emoji:'🐱',rarity:'common',   effect:'lucky',   effectLabel:'🍀 Lucky',   desc:'+30%!', baseChance:0.08, buyPrice:280},
+  butterfly:{name:'Flutter',emoji:'🦋',rarity:'common',   effect:'golden',  effectLabel:'🌟 Golden',  desc:'2× gold!', baseChance:0.05, buyPrice:500},
+  penguin:  {name:'Waddles',emoji:'🐧',rarity:'rare',     effect:'golden',  effectLabel:'🌟 Golden',  desc:'2× gold!', baseChance:0.07, buyPrice:1000},
+  frog:     {name:'Hopps',  emoji:'🐸',rarity:'uncommon', effect:'speed',   effectLabel:'⚡ Speed',   desc:'Cuts 1min off grow time (silent)', baseChance:0.09, buyPrice:700},
+  turtle:   {name:'Shell',  emoji:'🐢',rarity:'uncommon', effect:'speed',   effectLabel:'⚡ Speed',   desc:'Cuts 1min off grow time (silent)', baseChance:0.10, buyPrice:1000},
+  fox:      {name:'Ember',  emoji:'🦊',rarity:'rare',     effect:'rainbow', effectLabel:'🌈 Rainbow', desc:'3× gold!', baseChance:0.03, buyPrice:2200},
+  unicorn:  {name:'Sparkle',emoji:'🦄',rarity:'legendary',effect:'rainbow', effectLabel:'🌈 Rainbow', desc:'3× gold!', baseChance:0.04, buyPrice:5000},
+  phoenix:  {name:'Cinder', emoji:'🦅',rarity:'rare',     effect:'inferno', effectLabel:'🔥 Inferno', desc:'5× gold!', baseChance:0.02, buyPrice:7500},
+  dragon:   {name:'Ignis',  emoji:'🐲',rarity:'legendary',effect:'inferno', effectLabel:'🔥 Inferno', desc:'5× gold!', baseChance:0.03,buyPrice:15000},
+};
+
+const MUT_MULT  = {lucky:1.3, golden:2, rainbow:3, inferno:5, 'combo-gi':8, 'combo-ri':10, 'combo-gr':6};
+const MUT_EMOJI = {lucky:'🍀', golden:'🌟', rainbow:'🌈', inferno:'🔥', 'combo-gi':'✨🔥', 'combo-ri':'🌈🔥', 'combo-gr':'🌟🌈'};
+const MUT_COLOR = {lucky:'#40A040', golden:'#D4A017', rainbow:'#C040E0', inferno:'#FF4400', 'combo-gi':'#FF8800', 'combo-ri':'#FF44AA', 'combo-gr':'#AA44FF'};
+const MUT_NAME  = {lucky:'Lucky (+30%)', golden:'Golden (2×)', rainbow:'Rainbow (3×)', inferno:'Inferno (5×)', 'combo-gi':'Infernal Gold (8×)', 'combo-ri':'Infernal Rainbow (10×)', 'combo-gr':'Prismatic Gold (6×)'};
+const COMBO_MAP = {'golden+inferno':'combo-gi','inferno+golden':'combo-gi','rainbow+inferno':'combo-ri','inferno+rainbow':'combo-ri','golden+rainbow':'combo-gr','rainbow+golden':'combo-gr'};
+
+const UPGRADES = [
+  {id:'plots',    name:'More Plots',  emoji:'🏗️',levels:[{cost:80,desc:'Unlock 6 plots'},{cost:200,desc:'Unlock 9 plots'},{cost:500,desc:'Unlock 12 plots'},{cost:1200,desc:'Unlock 16 plots'}]},
+  {id:'speed',    name:'Fertilizer',  emoji:'⚗️',levels:[{cost:120,desc:'+20% grow speed'},{cost:350,desc:'+40% grow speed'},{cost:800,desc:'+60% grow speed'}]},
+  {id:'sellbonus',name:'Market Stall',emoji:'🏪',levels:[{cost:150,desc:'+15% sell value'},{cost:400,desc:'+30% sell value'},{cost:900,desc:'+50% sell value'}]},
+  {id:'bagsize',  name:'Seed Bag',    emoji:'🎒',levels:[{cost:100,desc:'Carry 20 seeds'},{cost:300,desc:'Carry 30 seeds'},{cost:700,desc:'Carry 50 seeds'}]},
+  {id:'petslots', name:'Pet Pen',     emoji:'🐾',levels:[{cost:200,desc:'2 pet slots'},{cost:500,desc:'3 pet slots'},{cost:1000,desc:'4 pet slots'},{cost:2000,desc:'5 pet slots'}]},
+];
+
+// ===== STATE =====
+let state = {
+  gold:50, day:1,
+  plots:[],
+  inventory:{},
+  ownedPets:[],   // [{petId, uid, level, xp}]  level 50-100, xp toward next level
+  petSlots:[],    // petUid|null per slot
+  shopStock:[],
+  shopRefreshAt:Date.now()+300000,
+  upgrades:{plots:0,speed:0,sellbonus:0,bagsize:0,petslots:0},
+  selectedSeed:null,
+  stats:{harvests:0,earned:0,petTriggers:0},
+  log:[],
+};
+
+const PLOT_COUNTS=[4,6,9,12,16];
+const MAX_LOG=40;
+const PET_MIN_SPAWN_LV=50, PET_MAX_SPAWN_LV=70, PET_MAX_LV=100, PET_OWN_BONUS_LEVELS=30;
+function plotCount()   { return PLOT_COUNTS[state.upgrades.plots||0]; }
+function speedMult()   { return [1,0.8,0.6,0.4][state.upgrades.speed||0]; }
+function sellMult()    { return [1,1.15,1.3,1.5][state.upgrades.sellbonus||0]; }
+function maxSeeds()    { return [12,20,30,50][state.upgrades.bagsize||0]; }
+function maxPetSlots() { return (state.upgrades.petslots||0)+1; }
+function totalSeeds()  { return Object.values(state.inventory).reduce((a,b)=>a+b,0); }
+
+function petChance(petEntry) {
+  const pet=PETS[petEntry.petId];
+  const lv=petEntry.level||50;
+  return pet.baseChance*(1+(lv-50)*0.005);
+}
+function petMaxLevel(petEntry){
+  // Base spawn level determines personal cap: spawnLevel + 30, capped at 100
+  const spawnLv=petEntry.spawnLevel||PET_MIN_SPAWN_LV;
+  return Math.min(PET_MAX_LV, spawnLv+PET_OWN_BONUS_LEVELS);
+}
+function levelUpCost(petEntry){
+  return 50*(petEntry.level||50);
+}
+function xpToNextLevel(petEntry){
+  return 10+(petEntry.level-50)*2; // small amounts: 10 xp at lv50, 110 xp at lv100
+}
+
+function save(){ try{localStorage.setItem('bloomstead_v4',JSON.stringify(state));}catch(e){} }
+function load(){ try{const d=localStorage.getItem('bloomstead_v4');if(d){const s=JSON.parse(d);state={...state,...s};}}catch(e){} }
+
+// ===== SHOP =====
+const CROP_POOLS={common:['wheat','carrot','tomato','corn','strawberry'],uncommon:['sunflower','blueberry','pumpkin','mushroom','eggplant','watermelon'],rare:['dragonfruit','crystalbell','starfruit']};
+const PET_POOLS={common:['bee','cat','butterfly'],uncommon:['turtle','frog'],rare:['penguin','fox','phoenix'],legendary:['unicorn','dragon']};
+
+function generateShop(){
+  const items=[];
+  [...CROP_POOLS.common].sort(()=>Math.random()-0.5).slice(0,2).forEach(id=>items.push({type:'crop',id,sale:Math.random()<0.25}));
+  [...CROP_POOLS.uncommon].sort(()=>Math.random()-0.5).slice(0,2).forEach(id=>items.push({type:'crop',id,sale:Math.random()<0.2}));
+  if(Math.random()<0.4)items.push({type:'crop',id:CROP_POOLS.rare[Math.floor(Math.random()*CROP_POOLS.rare.length)],sale:false});
+  if(Math.random()<0.1)items.push({type:'crop',id:'goldenrose',sale:false});
+  // Pets — include the shop spawn level preview
+  items.push({type:'pet',id:PET_POOLS.common[Math.floor(Math.random()*PET_POOLS.common.length)]});
+  if(Math.random()<0.5)items.push({type:'pet',id:PET_POOLS.uncommon[Math.floor(Math.random()*PET_POOLS.uncommon.length)]});
+  if(Math.random()<0.25)items.push({type:'pet',id:PET_POOLS.rare[Math.floor(Math.random()*PET_POOLS.rare.length)]});
+  if(Math.random()<0.08)items.push({type:'pet',id:PET_POOLS.legendary[Math.floor(Math.random()*PET_POOLS.legendary.length)]});
+  return items;
+}
+function randSpawnLv(){
+  return Math.floor(Math.random()*(PET_MAX_SPAWN_LV-PET_MIN_SPAWN_LV+1))+PET_MIN_SPAWN_LV;
+}
+function refreshShop(){
+  state.shopStock=generateShop();
+  state.shopRefreshAt=Date.now()+300000;
+  save();renderShop();
+  notify('🔄 Shop refreshed!','');
+}
+
+// ===== RENDER =====
+function renderGold(){
+  document.getElementById('goldDisplay').textContent=Math.floor(state.gold);
+  document.getElementById('dayDisplay').textContent=`Day ${state.day}`;
+  document.getElementById('statHarvests').textContent=state.stats.harvests;
+  document.getElementById('statEarned').textContent=Math.floor(state.stats.earned);
+  document.getElementById('statPlots').textContent=plotCount();
+  document.getElementById('statPetTriggers').textContent=state.stats.petTriggers||0;
+}
+
+function getPlotSpeedMult(){ return speedMult(); }
+
+function renderFarm(){
+  const grid=document.getElementById('farmGrid');
+  const count=plotCount();
+  const cols=count<=6?3:4;
+  grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  while(state.plots.length<count)state.plots.push(null);
+  grid.innerHTML='';
+  for(let i=0;i<count;i++){
+    const plot=state.plots[i];
+    const div=document.createElement('div');
+    div.className='plot';
+    if(!plot){
+      div.innerHTML=`<div class="plot-emoji">🟫</div><div class="plot-empty-label">click to plant</div>`;
+      div.onclick=()=>plantOnPlot(i);
+    } else {
+      const crop=CROPS[plot.cropId];
+      const now=Date.now();
+      const mut=plot.mutation;
+      if(mut)div.classList.add(`mut-${mut.type}`);
+      if(plot.stage==='ready'){
+        div.classList.add('ready');
+        div.innerHTML=`
+          <div class="plot-emoji">${crop.emoji}</div>
+          <div class="plot-name">${crop.name}</div>
+          <div class="plot-timer">✅ Ready!</div>
+          ${crop.regrows?'<div class="regrow-badge">♻️</div>':''}
+          ${mut?`<div class="mutation-badge" title="${MUT_NAME[mut.type]||mut.type}">${MUT_EMOJI[mut.type]}</div>`:''}
+          <div class="plot-progress"><div class="plot-progress-bar" style="width:100%"></div></div>`;
+        div.onclick=()=>harvestPlot(i);
+      } else {
+        div.classList.add('planted');
+        const base=plot.stage==='regrowing'?crop.regrowTime:crop.growTime;
+        const growMs=base*getPlotSpeedMult()*1000;
+        const elapsed=now-plot.stageStart;
+        const pct=Math.min(100,(elapsed/growMs)*100);
+        const sec=Math.ceil(Math.max(0,growMs-elapsed)/1000);
+        const timeStr=sec>60?`${Math.floor(sec/60)}m ${sec%60}s`:`${sec}s`;
+        div.innerHTML=`
+          <button class="remove-btn" onclick="removePlot(event,${i})">✕</button>
+          <div class="plot-emoji">${plot.stage==='regrowing'?'🌿':'🌱'}</div>
+          <div class="plot-name">${crop.name}</div>
+          <div class="plot-timer">${timeStr}</div>
+          ${crop.regrows?'<div class="regrow-badge">♻️</div>':''}
+          ${mut?`<div class="mutation-badge" title="${MUT_NAME[mut.type]||mut.type}">${MUT_EMOJI[mut.type]}</div>`:''}
+          <div class="plot-progress"><div class="plot-progress-bar" style="width:${pct}%"></div></div>`;
+      }
+    }
+    grid.appendChild(div);
+  }
+}
+
+function renderSeedHotbar(){
+  const bar=document.getElementById('seedHotbar');
+  const seeds=Object.entries(state.inventory).filter(([,qty])=>qty>0);
+  if(seeds.length===0){
+    bar.innerHTML=`<div style="color:var(--text-muted);font-size:0.78rem;font-weight:600;">No seeds! Buy some from the shop →</div>`;
+    document.getElementById('modeLabel').textContent='buy seeds from the shop first';
+    return;
+  }
+  bar.innerHTML='';
+  seeds.forEach(([id,qty])=>{
+    const crop=CROPS[id];
+    const div=document.createElement('div');
+    div.className='seed-slot'+(state.selectedSeed===id?' selected':'');
+    div.innerHTML=`${crop.emoji} ${crop.name} <span class="seed-count">×${qty}</span>`;
+    div.onclick=()=>{state.selectedSeed=state.selectedSeed===id?null:id;renderSeedHotbar();};
+    bar.appendChild(div);
+  });
+  document.getElementById('modeLabel').textContent=state.selectedSeed
+    ?`Planting: ${CROPS[state.selectedSeed].emoji} ${CROPS[state.selectedSeed].name} — click a plot`
+    :'click a seed to select, then click an empty plot';
+}
+
+function renderShop(){
+  const container=document.getElementById('shopItems');
+  container.innerHTML='';
+  state.shopStock.forEach(item=>{
+    const div=document.createElement('div');
+    if(item.type==='crop'){
+      const crop=CROPS[item.id];
+      let price=BUY_PRICES[item.id];
+      if(item.sale)price=Math.floor(price*0.7);
+      const adjGrow=Math.round(crop.growTime*speedMult());
+      const adjRegrow=crop.regrows?Math.round(crop.regrowTime*speedMult()):null;
+      div.className='shop-item';
+      div.innerHTML=`
+        <div class="shop-item-emoji">${crop.emoji}</div>
+        <div class="shop-item-info">
+          <div class="shop-item-name">${crop.name}
+            <span class="rarity-badge rarity-${crop.rarity}">${crop.rarity}</span>
+            ${item.sale?'<span class="sale-badge">SALE!</span>':''}
+          </div>
+          <div class="shop-item-desc">🌱 ${formatTime(adjGrow)} ${adjRegrow?`· ♻️ ${formatTime(adjRegrow)}`:'· one-time'}</div>
+          <div class="shop-item-desc" style="color:var(--gold-dark);font-weight:700;">💰 🪙${Math.floor(crop.sellPrice*sellMult())}</div>
+        </div>
+        <button class="buy-btn" onclick="buySeed('${item.id}',${price})">🪙${price}</button>`;
+    } else {
+      const pet=PETS[item.id];
+      const chanceDisplay=(pet.baseChance*100).toFixed(1);
+      div.className='shop-item pet-item';
+      div.innerHTML=`
+        <div class="shop-item-emoji">${pet.emoji}</div>
+        <div class="shop-item-info">
+          <div class="shop-item-name">${pet.name}
+            <span class="rarity-badge rarity-${pet.rarity}">${pet.rarity}</span>
+          </div>
+          <div class="shop-item-desc">${pet.effectLabel} — ${pet.desc}</div>
+          <div class="shop-item-desc" style="color:#8A50C0;">~${chanceDisplay}% per 10s · random level on purchase</div>
+        </div>
+        <button class="buy-btn pet-buy" onclick="buyPet('${item.id}')">🪙${pet.buyPrice}</button>`;
+    }
+    container.appendChild(div);
+  });
+}
+
+function renderUpgrades(){
+  const container=document.getElementById('upgradeItems');
+  container.innerHTML='';
+  UPGRADES.forEach(upg=>{
+    const lv=state.upgrades[upg.id]||0;
+    const max=upg.levels.length;
+    const isMax=lv>=max;
+    const div=document.createElement('div');
+    div.className='upgrade-item';
+    div.innerHTML=`
+      <div style="font-size:1.5rem;">${upg.emoji}</div>
+      <div class="upgrade-info">
+        <div class="upgrade-name">${upg.name}</div>
+        <div class="upgrade-desc">${isMax?'Fully upgraded!':upg.levels[lv].desc}</div>
+        <div class="upgrade-level">Level ${lv}/${max}</div>
+      </div>
+      ${isMax?'<span class="maxed">✨ MAX</span>'
+        :`<button class="upgrade-btn" onclick="buyUpgrade('${upg.id}')" ${state.gold<upg.levels[lv].cost?'disabled':''}>🪙${upg.levels[lv].cost}</button>`}`;
+    container.appendChild(div);
+  });
+}
+
+function renderPets(){
+  const container=document.getElementById('panel-pets');
+  container.innerHTML='';
+  const slotCount=maxPetSlots();
+  while(state.petSlots.length<slotCount)state.petSlots.push(null);
+  if(state.petSlots.length>slotCount)state.petSlots=state.petSlots.slice(0,slotCount);
+
+  // Active slots header
+  const hdr=document.createElement('div');
+  hdr.style.cssText='font-size:0.7rem;font-weight:700;color:var(--text-muted);margin-bottom:5px;';
+  hdr.textContent=`🐾 Active Slots (${slotCount})`;
+  container.appendChild(hdr);
+
+  const slotsRow=document.createElement('div');
+  slotsRow.className='pet-slots';
+  for(let i=0;i<slotCount;i++){
+    const uid=state.petSlots[i];
+    const slot=document.createElement('div');
+    if(uid){
+      const pe=state.ownedPets.find(p=>p.uid===uid);
+      if(pe){
+        const pet=PETS[pe.petId];
+        const maxLv=petMaxLevel(pe);
+        slot.className='pet-slot occupied';
+        slot.innerHTML=`
+          <button class="remove-pet-btn" onclick="unassignPet(event,${i})">✕</button>
+          <div class="pet-slot-emoji">${pet.emoji}</div>
+          <div class="pet-slot-name">${pet.name}</div>
+          <div class="pet-slot-lv">Lv ${pe.level}/${maxLv}</div>`;
+      }
+    } else {
+      slot.className='pet-slot';
+      slot.innerHTML=`<div class="pet-slot-empty-label">Empty<br>Slot</div>`;
+    }
+    slotsRow.appendChild(slot);
+  }
+  container.appendChild(slotsRow);
+
+  if(!state.ownedPets.length){
+    const empty=document.createElement('div');
+    empty.style.cssText='color:var(--text-muted);font-size:0.78rem;text-align:center;padding:14px;';
+    empty.textContent='No pets! Buy some from the shop.';
+    container.appendChild(empty);return;
+  }
+
+  const ownedHdr=document.createElement('div');
+  ownedHdr.style.cssText='font-size:0.7rem;font-weight:700;color:var(--text-muted);margin:8px 0 5px;';
+  ownedHdr.textContent='🐾 Your Pets';
+  container.appendChild(ownedHdr);
+
+  const list=document.createElement('div');
+  list.className='owned-pets';
+  state.ownedPets.forEach(pe=>{
+    const pet=PETS[pe.petId];
+    const maxLv=petMaxLevel(pe);
+    const isSlotted=state.petSlots.includes(pe.uid);
+    const xpNeeded=xpToNextLevel(pe);
+    const xpPct=Math.min(100,((pe.xp||0)/xpNeeded)*100);
+    const canLevelUp=(pe.level<maxLv)&&(state.gold>=levelUpCost(pe));
+    const isMaxLv=pe.level>=maxLv;
+    const chanceNow=(petChance(pe)*100).toFixed(2);
+    const sellVal=Math.floor(pet.buyPrice*0.5);
+    const row=document.createElement('div');
+    row.className='owned-pet-row';
+    row.innerHTML=`
+      <div style="font-size:1.5rem;">${pet.emoji}</div>
+      <div class="owned-pet-info">
+        <div class="owned-pet-name">${pet.name} <span style="background:linear-gradient(135deg,#6A30A0,#A050E0);color:#fff;border-radius:4px;padding:1px 5px;font-size:0.6rem;font-weight:800;">Lv ${pe.level}/${maxLv}</span></div>
+        <div class="owned-pet-desc">${pet.effectLabel} · ~${chanceNow}%/10s</div>
+        ${!isMaxLv?`<div class="pet-xp-bar"><div class="pet-xp-fill" style="width:${xpPct}%"></div></div>
+        <div style="font-size:0.55rem;color:var(--text-muted);">${pe.xp||0}/${xpNeeded} XP · force lvl up costs 🪙${levelUpCost(pe)}</div>`
+        :`<div style="font-size:0.58rem;color:var(--gold-dark);font-weight:700;">✨ MAX LEVEL</div>`}
+      </div>
+      <div class="pet-actions">
+        <button class="assign-btn" onclick="assignPet('${pe.uid}')" ${isSlotted?'disabled':''}>
+          ${isSlotted?'Active':'Assign'}
+        </button>
+        ${!isMaxLv?`<button class="levelup-btn" onclick="levelUpPet('${pe.uid}')" ${canLevelUp?'':'disabled'}>⬆ Up</button>`:''}
+        <button class="sell-pet-btn" onclick="sellPet('${pe.uid}')">💰 ${sellVal}</button>
+      </div>`;
+    list.appendChild(row);
+  });
+  container.appendChild(list);
+}
+
+function renderLog(){
+  const container=document.getElementById('logEntries');
+  container.innerHTML='';
+  if(!state.log.length){
+    container.innerHTML=`<div style="color:var(--text-muted);font-size:0.78rem;text-align:center;padding:14px;">No pet activity yet...</div>`;
+    return;
+  }
+  [...state.log].reverse().forEach(e=>{
+    const div=document.createElement('div');
+    div.className='log-entry';
+    div.innerHTML=`<span>${e.msg}</span><span class="log-time">${e.time}</span>`;
+    container.appendChild(div);
+  });
+}
+
+function renderInventory(){
+  const container=document.getElementById('panel-inv');
+  container.innerHTML='';
+  const used=totalSeeds(),cap=maxSeeds();
+  const pct=Math.min(100,(used/cap)*100);
+  const barColor=pct>=100?'#E85D4A':pct>=75?'#D4A017':'#4A7C3F';
+  const capDiv=document.createElement('div');
+  capDiv.style.cssText='margin-bottom:8px;';
+  capDiv.innerHTML=`
+    <div style="display:flex;justify-content:space-between;font-size:0.7rem;font-weight:700;color:var(--text-muted);margin-bottom:3px;">
+      <span>🎒 Seed Bag</span><span style="color:${barColor}">${used}/${cap}</span>
+    </div>
+    <div style="background:rgba(0,0,0,0.1);border-radius:7px;height:7px;overflow:hidden;">
+      <div style="width:${pct}%;height:100%;background:${barColor};border-radius:7px;transition:width 0.3s;"></div>
+    </div>`;
+  container.appendChild(capDiv);
+  const entries=Object.entries(state.inventory).filter(([,qty])=>qty>0);
+  if(!entries.length){
+    const e=document.createElement('div');
+    e.style.cssText='color:var(--text-muted);font-size:0.8rem;text-align:center;padding:12px;';
+    e.textContent='No seeds! Buy some from the shop.';
+    container.appendChild(e);return;
+  }
+  entries.forEach(([id,qty])=>{
+    const crop=CROPS[id];if(!crop)return;
+    const adjGrow=Math.round(crop.growTime*speedMult());
+    const row=document.createElement('div');
+    row.className='inv-row';
+    row.innerHTML=`
+      <div class="inv-emoji">${crop.emoji}</div>
+      <div class="inv-info">
+        <div class="inv-name">${crop.name}</div>
+        <div class="inv-qty">×${qty} · 🌱${formatTime(adjGrow)} · 💰🪙${Math.floor(crop.sellPrice*sellMult())}</div>
+      </div>`;
+    container.appendChild(row);
+  });
+}
+
+function renderPaytable(){
+  const container=document.getElementById('panel-pay');
+  container.innerHTML='';
+
+  // Section: Mutation multipliers
+  let html=`<div class="paytable-section">
+    <div class="paytable-title">🌟 Pet Mutations (apply to crops while growing)</div>
+    <div class="paytable-grid">`;
+  const mutsBase=['lucky','golden','rainbow','inferno'];
+  mutsBase.forEach(k=>{
+    html+=`<div class="paytable-row"><span>${MUT_EMOJI[k]}</span><span style="flex:1;">${MUT_NAME[k]}</span></div>`;
+  });
+  html+=`</div><div class="pt-note">Mutations apply when crop is harvested. Combos form when two compatible mutations land on the same crop.</div></div>`;
+
+  // Section: Combo multipliers
+  html+=`<div class="paytable-section">
+    <div class="paytable-title">✨ Combo Mutations (two pets, one crop)</div>
+    <div class="paytable-grid">`;
+  const combos=['combo-gi','combo-ri','combo-gr'];
+  combos.forEach(k=>{
+    html+=`<div class="paytable-row combo-row"><span>${MUT_EMOJI[k]}</span><span style="flex:1;">${MUT_NAME[k]}</span></div>`;
+  });
+  html+=`</div><div class="pt-note">Combos override the base mutations. Stack Golden+Inferno for 8×, Rainbow+Inferno for 10×!</div></div>`;
+
+  // Section: Crop sell prices (base + with each mutation)
+  html+=`<div class="paytable-section">
+    <div class="paytable-title">🌾 Crop Base Values (current sell bonus applied)</div>
+    <div style="display:flex;flex-direction:column;gap:3px;">`;
+  Object.entries(CROPS).forEach(([id,c])=>{
+    const base=Math.floor(c.sellPrice*sellMult());
+    html+=`<div class="paytable-row" style="font-size:0.6rem;">
+      <span>${c.emoji}</span>
+      <span style="flex:1;font-weight:700;">${c.name}</span>
+      <span style="color:var(--gold-dark);font-weight:800;">🪙${base}</span>
+      <span style="color:#40A040;margin-left:4px;">🍀${Math.floor(base*1.3)}</span>
+      <span style="color:#D4A017;margin-left:4px;">🌟${base*2}</span>
+      <span style="color:#C040E0;margin-left:4px;">🌈${base*3}</span>
+      <span style="color:#FF4400;margin-left:4px;">🔥${base*5}</span>
+    </div>`;
+  });
+  html+=`</div><div class="pt-note">Values shown: base · 🍀Lucky · 🌟Golden · 🌈Rainbow · 🔥Inferno</div></div>`;
+
+  // Section: Pet trigger chances
+  html+=`<div class="paytable-section">
+    <div class="paytable-title">🐾 Pet Trigger Rates (per 10 seconds)</div>
+    <div style="display:flex;flex-direction:column;gap:3px;">`;
+  Object.entries(PETS).forEach(([id,pet])=>{
+    const lv50=(pet.baseChance*100).toFixed(2);
+    const lv70=(pet.baseChance*(1+20*0.005)*100).toFixed(2);
+    const lv100=(pet.baseChance*(1+50*0.005)*100).toFixed(2);
+    html+=`<div class="paytable-row" style="font-size:0.6rem;">
+      <span>${pet.emoji}</span>
+      <span style="flex:1;font-weight:700;">${pet.name}</span>
+      <span style="color:#6A30A0;">${pet.effectLabel}</span>
+      <span style="margin-left:6px;color:var(--text-muted);">Lv50: ${lv50}% → Lv70: ${lv70}% → Lv100: ${lv100}%</span>
+    </div>`;
+  });
+  html+=`</div><div class="pt-note">Higher level = higher trigger chance. Speed triggers are invisible (−1 min from grow time).</div></div>`;
+
+  container.innerHTML=html;
+}
+
+// ===== ACTIONS =====
+function plantOnPlot(index){
+  if(!state.selectedSeed){notify('Select a seed first!','error');return;}
+  if(!state.inventory[state.selectedSeed]||state.inventory[state.selectedSeed]<=0){notify('Out of that seed!','error');return;}
+  state.inventory[state.selectedSeed]--;
+  state.plots[index]={cropId:state.selectedSeed,stage:'growing',stageStart:Date.now(),mutation:null};
+  if(state.inventory[state.selectedSeed]===0){delete state.inventory[state.selectedSeed];state.selectedSeed=null;}
+  save();renderFarm();renderSeedHotbar();renderInventory();
+}
+function removePlot(e,index){
+  e.stopPropagation();
+  if(!confirm('Remove this plant? You won\'t get the seed back.'))return;
+  state.plots[index]=null;
+  save();renderFarm();
+}
+function harvestPlot(index){
+  const plot=state.plots[index];
+  if(!plot||plot.stage!=='ready')return;
+  const crop=CROPS[plot.cropId];
+  let mult=sellMult();
+  let popColor='#D4A017';
+  let popSuffix='';
+  if(plot.mutation&&MUT_MULT[plot.mutation.type]){
+    mult*=MUT_MULT[plot.mutation.type];
+    popColor=MUT_COLOR[plot.mutation.type];
+    popSuffix=` ${MUT_EMOJI[plot.mutation.type]}`;
+  }
+  const earned=Math.floor(crop.sellPrice*mult);
+  state.gold+=earned;
+  state.stats.harvests++;
+  state.stats.earned+=earned;
+  // Award XP to active pets on harvest
+  awardPetXP();
+  if(crop.regrows){plot.stage='regrowing';plot.stageStart=Date.now();plot.mutation=null;}
+  else state.plots[index]=null;
+  showHarvestPop(`🪙${earned}${popSuffix}`,index,popColor);
+  save();renderFarm();renderGold();renderSeedHotbar();renderUpgrades();
+}
+function harvestAll(){
+  let count=0;
+  for(let i=0;i<state.plots.length;i++){
+    if(state.plots[i]?.stage==='ready'){harvestPlot(i);count++;}
+  }
+  if(count===0)notify('No ready crops!','error');
+}
+function awardPetXP(){
+  let changed=false;
+  state.petSlots.forEach(uid=>{
+    if(!uid)return;
+    const pe=state.ownedPets.find(p=>p.uid===uid);
+    if(!pe)return;
+    const maxLv=petMaxLevel(pe);
+    if(pe.level>=maxLv)return;
+    pe.xp=(pe.xp||0)+1;
+    const needed=xpToNextLevel(pe);
+    if(pe.xp>=needed){
+      pe.xp=pe.xp-needed;
+      pe.level++;
+      changed=true;
+      const pet=PETS[pe.petId];
+      notify(`⬆ ${pet.emoji} ${pet.name} leveled up to Lv ${pe.level}!`,'levelup');
+    }
+  });
+  if(changed&&document.getElementById('tab-pets').classList.contains('active'))renderPets();
+}
+function buySeed(cropId,price){
+  if(state.gold<price){notify('Not enough gold! 💸','error');return;}
+  if(totalSeeds()>=maxSeeds()){notify('🎒 Bag full! Upgrade Seed Bag.','error');return;}
+  state.gold-=price;
+  state.inventory[cropId]=(state.inventory[cropId]||0)+1;
+  notify(`Bought ${CROPS[cropId].emoji} ${CROPS[cropId].name}!`,'');
+  save();renderGold();renderSeedHotbar();renderShop();renderUpgrades();renderInventory();
+}
+function buyPet(petId){
+  const pet=PETS[petId];
+  const lv=randSpawnLv();
+  if(state.gold<pet.buyPrice){notify('Not enough gold! 💸','error');return;}
+  state.gold-=pet.buyPrice;
+  const uid=Date.now().toString(36)+Math.random().toString(36).slice(2);
+  state.ownedPets.push({petId,uid,level:lv,spawnLevel:lv,xp:0});
+  notify(`${pet.emoji} ${pet.name} (Lv ${lv}) joined your farm!`,'pet');
+  save();renderGold();renderShop();
+  if(document.getElementById('tab-pets').classList.contains('active'))renderPets();
+}
+function assignPet(uid){
+  const emptyIdx=state.petSlots.indexOf(null);
+  if(emptyIdx===-1){notify('No empty pet slots! Upgrade Pet Pen.','error');return;}
+  if(state.petSlots.includes(uid)){notify('Already active!','error');return;}
+  state.petSlots[emptyIdx]=uid;
+  save();renderPets();
+}
+function unassignPet(e,idx){
+  e.stopPropagation();
+  state.petSlots[idx]=null;
+  save();renderPets();
+}
+function levelUpPet(uid){
+  const pe=state.ownedPets.find(p=>p.uid===uid);
+  if(!pe)return;
+  const maxLv=petMaxLevel(pe);
+  if(pe.level>=maxLv){notify('Already at max level!','error');return;}
+  const cost=levelUpCost(pe);
+  if(state.gold<cost){notify('Not enough gold!','error');return;}
+  state.gold-=cost;
+  pe.level++;
+  pe.xp=0;
+  const pet=PETS[pe.petId];
+  notify(`⬆ ${pet.emoji} ${pet.name} leveled up to Lv ${pe.level}!`,'levelup');
+  save();renderGold();renderPets();
+}
+function sellPet(uid){
+  const pe=state.ownedPets.find(p=>p.uid===uid);
+  if(!pe)return;
+  const pet=PETS[pe.petId];
+  const sellVal=Math.floor(pet.buyPrice*0.5);
+  if(!confirm(`Sell ${pet.emoji} ${pet.name} (Lv ${pe.level}) for 🪙${sellVal}?`))return;
+  // Remove from slots if active
+  for(let i=0;i<state.petSlots.length;i++){
+    if(state.petSlots[i]===uid)state.petSlots[i]=null;
+  }
+  state.ownedPets=state.ownedPets.filter(p=>p.uid!==uid);
+  state.gold+=sellVal;
+  notify(`Sold ${pet.emoji} ${pet.name} for 🪙${sellVal}`,'earn');
+  save();renderGold();renderPets();
+}
+function buyUpgrade(id){
+  const upg=UPGRADES.find(u=>u.id===id);
+  const lv=state.upgrades[id]||0;
+  if(lv>=upg.levels.length)return;
+  const cost=upg.levels[lv].cost;
+  if(state.gold<cost){notify('Not enough gold!','error');return;}
+  state.gold-=cost;
+  state.upgrades[id]=lv+1;
+  notify(`⚡ Upgraded: ${upg.name}!`,'');
+  save();renderAll();
+}
+function switchTab(tab){
+  ['inv','pets','upg','pay','log'].forEach(t=>{
+    document.getElementById(`tab-${t}`).classList.toggle('active',t===tab);
+    const panel=document.getElementById(`panel-${t}`);
+    panel.style.display=t===tab?(t==='inv'?'flex':'block'):'none';
+  });
+  if(tab==='upg')renderUpgrades();
+  if(tab==='inv')renderInventory();
+  if(tab==='pets')renderPets();
+  if(tab==='pay')renderPaytable();
+  if(tab==='log')renderLog();
+}
+
+// ===== PET TICK =====
+let petTickCounter=0;
+function petTick(){
+  petTickCounter++;
+  if(petTickCounter<10)return;
+  petTickCounter=0;
+  const active=state.petSlots.filter(Boolean);
+  if(!active.length)return;
+  let triggered=false;
+  active.forEach(uid=>{
+    const pe=state.ownedPets.find(p=>p.uid===uid);
+    if(!pe)return;
+    const pet=PETS[pe.petId];
+    const chance=petChance(pe);
+    if(Math.random()>chance)return;
+
+    if(pet.effect==='speed'){
+      const targets=state.plots.map((p,i)=>p&&(p.stage==='growing'||p.stage==='regrowing')?i:null).filter(i=>i!==null);
+      if(!targets.length)return;
+      const idx=targets[Math.floor(Math.random()*targets.length)];
+      state.plots[idx].stageStart-=60000;
+      state.stats.petTriggers=(state.stats.petTriggers||0)+1;
+      triggered=true;
+      const t=nowTime();
+      addLog(`${pet.emoji} ${pe.level>50?`Lv${pe.level} `:''}${pet.name} shaved 1 min off ${CROPS[state.plots[idx].cropId].emoji} ${CROPS[state.plots[idx].cropId].name}`,t);
+      return;
+    }
+
+    const eligible=state.plots.map((p,i)=>p&&(p.stage==='growing'||p.stage==='regrowing')?i:null).filter(i=>i!==null);
+    if(!eligible.length)return;
+    const idx=eligible[Math.floor(Math.random()*eligible.length)];
+    const plot=state.plots[idx];
+    const crop=CROPS[plot.cropId];
+    const t=nowTime();
+
+    if(plot.mutation&&plot.mutation.type){
+      const existing=plot.mutation.type;
+      const comboKey=existing+'+'+pet.effect;
+      if(COMBO_MAP[comboKey]){
+        const newType=COMBO_MAP[comboKey];
+        plot.mutation={type:newType,uid};
+        state.stats.petTriggers=(state.stats.petTriggers||0)+1;
+        triggered=true;
+        addLog(`✨ COMBO! ${crop.emoji} ${crop.name} → ${MUT_NAME[newType]}`,t);
+        return;
+      }
+      if(pet.effect==='lucky'){
+        plot.mutation={type:'lucky',uid};
+        state.stats.petTriggers=(state.stats.petTriggers||0)+1;
+        triggered=true;
+        addLog(`${pet.emoji} ${pet.name} re-blessed ${crop.emoji} ${crop.name} 🍀`,t);
+        return;
+      }
+      return; // skip same effect re-apply
+    }
+    plot.mutation={type:pet.effect,uid};
+    state.stats.petTriggers=(state.stats.petTriggers||0)+1;
+    triggered=true;
+    addLog(`${pet.emoji} ${pet.name} blessed ${crop.emoji} ${crop.name} with ${pet.effectLabel}`,t);
+  });
+  if(triggered)save();
+}
+
+function nowTime(){
+  const n=new Date();
+  return n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+}
+function addLog(msg,time){
+  state.log.push({msg,time});
+  if(state.log.length>MAX_LOG)state.log=state.log.slice(-MAX_LOG);
+  if(document.getElementById('tab-log').classList.contains('active'))renderLog();
+}
+
+// ===== UTILS =====
+function formatTime(seconds){
+  if(seconds<60)return`${seconds}s`;
+  const m=Math.floor(seconds/60),s=seconds%60;
+  return s>0?`${m}m ${s}s`:`${m}m`;
+}
+function notify(msg,type){
+  const n=document.createElement('div');
+  n.className='notification'+(type?` ${type}`:'');
+  n.textContent=msg;
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(),2600);
+}
+function showHarvestPop(text,plotIndex,color='#D4A017'){
+  const grid=document.getElementById('farmGrid');
+  const cells=grid.children;
+  if(!cells[plotIndex])return;
+  const rect=cells[plotIndex].getBoundingClientRect();
+  const pop=document.createElement('div');
+  pop.className='harvest-pop';
+  pop.textContent=text;
+  pop.style.color=color;
+  pop.style.left=(rect.left+rect.width/2-30)+'px';
+  pop.style.top=(rect.top+window.scrollY)+'px';
+  document.body.appendChild(pop);
+  setTimeout(()=>pop.remove(),1200);
+}
+function renderAll(){
+  renderGold();renderFarm();renderSeedHotbar();renderShop();renderInventory();
+  if(document.getElementById('tab-upg').classList.contains('active'))renderUpgrades();
+  if(document.getElementById('tab-pets').classList.contains('active'))renderPets();
+  if(document.getElementById('tab-pay').classList.contains('active'))renderPaytable();
+  if(document.getElementById('tab-log').classList.contains('active'))renderLog();
+}
+
+// ===== CLOUDS =====
+function createClouds(){
+  const c=document.getElementById('clouds');
+  for(let i=0;i<5;i++){
+    const cl=document.createElement('div');cl.className='cloud';
+    const w=80+Math.random()*120;
+    cl.style.cssText=`width:${w}px;top:${Math.random()*60}px;animation-duration:${30+Math.random()*40}s;animation-delay:-${Math.random()*60}s;opacity:${0.4+Math.random()*0.4}`;
+    c.appendChild(cl);
+  }
+}
+
+// ===== TICK =====
+let dayTimer=0;
+function tick(){
+  const now=Date.now();
+  let changed=false;
+  for(let i=0;i<state.plots.length;i++){
+    const plot=state.plots[i];
+    if(!plot||plot.stage==='ready')continue;
+    const crop=CROPS[plot.cropId];
+    const base=plot.stage==='regrowing'?crop.regrowTime:crop.growTime;
+    const growMs=base*getPlotSpeedMult()*1000;
+    if(now-plot.stageStart>=growMs){plot.stage='ready';changed=true;}
+  }
+  if(now>=state.shopRefreshAt)refreshShop();
+  const rem=Math.max(0,state.shopRefreshAt-now);
+  document.getElementById('shopTimer').textContent=`⏱ ${Math.floor(rem/60000)}:${Math.floor((rem%60000)/1000).toString().padStart(2,'0')}`;
+  dayTimer++;
+  if(dayTimer>=180){dayTimer=0;state.day++;save();}
+  petTick();
+  if(changed)save();
+  renderFarm();renderGold();
+}
+
+// ===== INIT =====
+load();
+// Migrate old pet format (petId string slots → uid slots)
+if(state.ownedPets.length&&typeof state.ownedPets[0]==='object'&&!state.ownedPets[0].uid){
+  state.ownedPets=state.ownedPets.map(p=>({petId:p.petId||p.id,uid:Date.now().toString(36)+Math.random().toString(36).slice(2),level:PET_MIN_SPAWN_LV,spawnLevel:PET_MIN_SPAWN_LV,xp:0}));
+  state.petSlots=state.petSlots.map(()=>null);
+}
+if(!state.ownedPets)state.ownedPets=[];
+if(!state.petSlots)state.petSlots=[];
+if(!state.log)state.log=[];
+if(!state.stats)state.stats={harvests:0,earned:0,petTriggers:0};
+if(!state.stats.petTriggers)state.stats.petTriggers=0;
+if(!state.upgrades.petslots)state.upgrades.petslots=0;
+if(!state.shopStock||state.shopStock.length===0){state.shopStock=generateShop();state.shopRefreshAt=Date.now()+300000;}
+createClouds();
+renderAll();
+setInterval(tick,1000);
+</script>
+</body>
+</html>
